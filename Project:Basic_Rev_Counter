@@ -1,0 +1,33 @@
+// Variable to store the count of revolutions
+int revolutions = 0;
+
+// the setup routine runs once when you press reset:
+void setup() {
+  // initialize serial communication at 9600 bits per second:
+  Serial.begin(9600);
+}
+
+// the loop routine runs over and over again forever:
+void loop() {
+  // read the input on analog pin 0:
+  int sensorValue = analogRead(A0);
+  
+  // Check if the sensor value is over 700
+  if (sensorValue > 900) {
+    // Increase the count of revolutions
+    revolutions++;
+    
+    // Print "1 revolution" when the sensor value goes over 700
+    Serial.println("1 revolution");
+    
+    // Print the current count of revolutions
+    Serial.print("Total revolutions: ");
+    Serial.println(revolutions);
+    
+  }
+
+  // print out the value you read:
+  Serial.println(sensorValue);
+  
+ 
+}

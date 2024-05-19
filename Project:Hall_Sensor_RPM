@@ -1,0 +1,53 @@
+volatile int revolutions = 0;
+volatile unsigned long lastInterruptTime = 0; // To handle debounce
+unsigned long timeold = 0;
+int rpm = 0;
+
+void setup() {
+  // Initialize serial communication at 9600 bits per second
+  Serial.begin(9600);
+  
+  // Initialize the interrupt pin (digital pin 2)
+  attachInterrupt(digitalPinToInterrupt(2), magnet_detect, RISING);
+  
+  // Initialize timing
+  timeold = millis();
+}
+
+void loop() {
+  // Calculate and print RPM every second
+  unsigned long currentTime = millis();
+  if (currentTime - timeold >= 1000) { // Update every second
+    // Disable interrupts while calculating RPM to avoid inconsistency
+    noInterrupts();
+    int revolutionsCopy = revolutions; // Make a copy of the count
+    revolutions = 0; // Reset the count
+    interrupts();
+    
+    // Calculate RPM
+    rpm = revolutionsCopy * 60; // Since counted as revolutions per second
+    
+    // Print the RPM value
+    Serial.print("RPM: ");
+    Serial.println(rpm);
+    
+    // Update the time
+    timeold = currentTime;
+  }
+}
+
+// Interrupt service routine to handle the magnet detection
+void magnet_detect() {
+  unsigned long interruptTime = millis();
+  
+  // Simple debounce mechanism: Ignore signals within 10 ms of the last interrupt
+  if (interruptTime - lastInterruptTime > 10) {
+    revolutions++;
+    lastInterruptTime = interruptTime;
+    
+    // Print detection and the current count of revolutions
+    Serial.println("detect");
+    Serial.print("Total revolutions: ");
+    Serial.println(revolutions);
+  }
+}

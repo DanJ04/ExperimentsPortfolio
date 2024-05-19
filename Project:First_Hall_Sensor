@@ -1,0 +1,20 @@
+// Variable to store the count of revolutions
+volatile int revolutions = 0;
+
+void setup() {
+  // Initialize serial communication at 9600 bits per second
+  Serial.begin(9600);
+  
+  // Initialize the interrupt pin (digital pin 2)
+  attachInterrupt(digitalPinToInterrupt(2), magnet_detect, RISING);
+}
+
+// Interrupt service routine to handle the magnet detection
+void magnet_detect() {
+  revolutions++;
+  
+  // Print detection and the current count of revolutions
+  Serial.println("Detect");
+  Serial.print("Total revolutions: ");
+  Serial.println(revolutions);
+}

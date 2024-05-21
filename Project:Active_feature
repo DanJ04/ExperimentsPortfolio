@@ -1,0 +1,144 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+const int HALL_SENSOR_PIN = 2;
+volatile int revolutions = 0;
+volatile unsigned long lastInterruptTime = 0; 
+volatile unsigned long lastRevolutionTime = 0;
+const int numSamples = 5; // Number of samples for averaging
+unsigned long revolutionTimes[numSamples];
+int sampleIndex = 0;
+boolean samplesFilled = false;
+unsigned long lastDisplayUpdate = 0;
+const unsigned long motionTimeout = 5000;
+const unsigned long displayUpdateInterval = 1000; // Update display every 1 second
+const unsigned long displayRotationInterval = 3000; // Rotate display every 3 seconds
+boolean isSpinning = false;
+int displayState = 0; // Variable to track the current display state
+unsigned long lastRotationTime = 0;
+const float cmPerRevolution = 42.0; // Distance per revolution in cm
+
+// Set the LCD address
+#define I2C_ADDR    0x27
+
+// Set the number of columns and rows of the LCD
+#define LCD_COLUMNS 16
+#define LCD_ROWS    2
+
+// Initialize the LiquidCrystal_I2C library
+LiquidCrystal_I2C lcd(I2C_ADDR, LCD_COLUMNS, LCD_ROWS);
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(HALL_SENSOR_PIN, INPUT);
+
+  // Initialize the LCD
+  lcd.init();
+  // Turn on the backlight
+  lcd.backlight();
+
+  // Display startup message
+  lcd.setCursor(0, 0);
+  lcd.print("Hamster");
+  lcd.setCursor(0, 1);
+  lcd.print("Pedometer");
+  delay(2000); // Display message for 2 seconds
+
+  attachInterrupt(digitalPinToInterrupt(HALL_SENSOR_PIN), magnet_detect, RISING);
+}
+
+void loop() {
+  unsigned long currentTime = millis();
+
+  if (currentTime - lastRevolutionTime < motionTimeout) {
+    isSpinning = true;
+  } else {
+    isSpinning = false;
+  }
+
+  if (currentTime - lastDisplayUpdate >= displayUpdateInterval) {
+    lastDisplayUpdate = currentTime;
+
+    noInterrupts(); // Temporarily disable interrupts for a safe read
+    int revs = revolutions;
+    unsigned long timeSinceLastRev = currentTime - lastRevolutionTime;
+    interrupts(); // Re-enable interrupts
+
+    float rpm = 0;
+    if (samplesFilled) {
+      unsigned long totalInterval = 0;
+      for (int i = 0; i < numSamples; i++) {
+        totalInterval += revolutionTimes[i];
+      }
+      float averageInterval = (float)totalInterval / numSamples;
+      if (averageInterval > 0) {
+        rpm = 60000.0 / averageInterval; // Calculate RPM
+      }
+    } else {
+      if (timeSinceLastRev > 0) {
+        rpm = 60000.0 / timeSinceLastRev; // Calculate RPM
+      }
+    }
+
+    float distanceMeters = (revs * cmPerRevolution) / 100.0; // Calculate distance in meters
+
+    // Print to Serial Monitor for debugging
+    Serial.print("RPM: ");
+    Serial.print(rpm);
+    Serial.print(" | Total Revs: ");
+    Serial.print(revs);
+    Serial.print(" | Distance: ");
+    Serial.print(distanceMeters);
+    Serial.println(" m");
+    
+    // Rotate display every displayRotationInterval
+    if (currentTime - lastRotationTime >= displayRotationInterval) {
+      lastRotationTime = currentTime;
+      displayState = (displayState + 1) % 4; // Cycle through states 0, 1, 2, and 3
+    }
+    // Print to LCD based on displayState
+    lcd.clear();
+    switch (displayState) {
+      case 0:
+        lcd.setCursor(0, 0);
+        lcd.print("RPM: ");
+        lcd.setCursor(0, 1);
+        lcd.print(rpm);
+        break;
+      case 1:
+        lcd.setCursor(0, 0);
+        lcd.print("Revolutions: ");
+        lcd.setCursor(0, 1);
+        lcd.print(revs);
+        break;
+      case 2:
+        lcd.setCursor(0, 0);
+        lcd.print("Distance(m): ");
+        lcd.setCursor(0, 1);
+        lcd.print(distanceMeters, 2);
+        break;
+      case 3:
+        lcd.setCursor(0, 0);
+        lcd.print("Active: ");
+        lcd.setCursor(0, 1);
+        lcd.print(isSpinning ? "Yes" : "No");
+        break;
+    }
+  }
+}
+void magnet_detect() {
+  unsigned long interruptTime = millis();
+
+  if (interruptTime - lastInterruptTime > 10) { // Debounce
+    revolutions++;
+    unsigned long revolutionTime = interruptTime - lastInterruptTime;
+    revolutionTimes[sampleIndex] = revolutionTime;
+    sampleIndex = (sampleIndex + 1) % numSamples;
+    if (sampleIndex == 0) {
+      samplesFilled = true;
+    }
+    lastInterruptTime = interruptTime;
+    lastRevolutionTime = interruptTime;
+    Serial.println("Revolution detected");
+  }
+}

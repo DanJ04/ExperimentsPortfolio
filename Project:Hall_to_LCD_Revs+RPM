@@ -11,7 +11,7 @@ const unsigned long motionTimeout = 5000;
 const unsigned long displayUpdateInterval = 1000; // Update display every 1 second
 boolean isSpinning = false;
 
-// Set the LCD address (usually 0x27 or 0x3F)
+// Set the LCD address
 #define I2C_ADDR    0x27
 
 // Set the number of columns and rows of the LCD
@@ -29,12 +29,6 @@ void setup() {
   lcd.init();
   // Turn on the backlight (if supported)
   lcd.backlight();
-
-  // Print a welcome message to the LCD
-  lcd.setCursor(0, 0);
-  lcd.print("Hamster");
-  lcd.setCursor(0, 1);
-  lcd.print("Pedometer");
 
   attachInterrupt(digitalPinToInterrupt(HALL_SENSOR_PIN), magnet_detect, RISING);
 }
